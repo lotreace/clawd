@@ -1,0 +1,36 @@
+{
+  "name": "clawd",
+  "version": "1.0.0",
+  "description": "Node.js shim between Claude Code CLI and OpenAI-compatible APIs",
+  "type": "module",
+  "main": "src/ClawdServer.js",
+  "bin": {
+    "clawd": "./bin/clawd.js",
+    "clawd4": "./bin/clawd4.js"
+  },
+  "scripts": {
+    "start": "node bin/clawd.js",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "openai": "^4.73.0"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.0"
+  },
+  "keywords": [
+    "claude",
+    "openai",
+    "anthropic",
+    "proxy",
+    "shim"
+  ],
+  "author": "",
+  "license": "MIT"
+}
