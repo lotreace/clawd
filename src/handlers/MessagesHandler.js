@@ -7,6 +7,9 @@ import { ModelMappingHook } from '../hooks/ModelMappingHook.js';
 import { ThinkingModeHook } from '../hooks/ThinkingModeHook.js';
 import { Logger } from '../utils/Logger.js';
 
+const MAX_RETRIES = 3;
+const INITIAL_BACKOFF_MS = 1000;
+
 class MessagesHandler {
   constructor(config) {
     this.config = config;
@@ -60,9 +63,11 @@ class MessagesHandler {
   }
 
   async _handleNonStreaming(res, openaiRequest, originalModel) {
-    const openaiResponse = await this.openai.chat.completions.create({
-      ...openaiRequest,
-      stream: false
+    const openaiResponse = await this._executeWithRetry(async () => {
+      return await this.openai.chat.completions.create({
+        ...openaiRequest,
+        stream: false
+      });
     });
 
     const anthropicResponse = this.responseTranslator.translate(
@@ -71,6 +76,41 @@ class MessagesHandler {
     );
 
     res.json(anthropicResponse);
+  }
+
+  async _executeWithRetry(fn) {
+    let lastError;
+
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      try {
+        return await fn();
+      } catch (error) {
+        lastError = error;
+
+        if (!this._isRetryable(error)) {
+          throw error;
+        }
+
+        const backoffMs = INITIAL_BACKOFF_MS * Math.pow(2, attempt);
+        this.logger.warn(`Request failed (attempt ${attempt + 1}/${MAX_RETRIES}), retrying in ${backoffMs}ms...`, {
+          status: error.status,
+          message: error.message
+        });
+
+        await this._sleep(backoffMs);
+      }
+    }
+
+    throw lastError;
+  }
+
+  _isRetryable(error) {
+    const status = error.status || error.response?.status;
+    return status === 429 || (status >= 500 && status < 600);
+  }
+
+  _sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   _handleError(res, error) {

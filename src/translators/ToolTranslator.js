@@ -1,4 +1,10 @@
+import { Logger } from '../utils/Logger.js';
+
 class ToolTranslator {
+  constructor() {
+    this.logger = new Logger('ToolTranslator');
+  }
+
   translateToolDefinitions(anthropicTools) {
     if (!anthropicTools || !Array.isArray(anthropicTools)) {
       return undefined;
@@ -64,7 +70,8 @@ class ToolTranslator {
 
     try {
       return JSON.parse(args);
-    } catch {
+    } catch (error) {
+      this.logger.warn(`Failed to parse tool arguments: ${error.message}`, { args: args.substring(0, 100) });
       return {};
     }
   }

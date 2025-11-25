@@ -9,6 +9,7 @@ class StreamTranslator {
     this.messageId = this._generateMessageId();
     this.builder = new AnthropicStreamBuilder(this.messageId, originalModel);
     this.originalModel = originalModel;
+    this._textBlockClosed = false;
   }
 
   async processStream(openaiStream) {

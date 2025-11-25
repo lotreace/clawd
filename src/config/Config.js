@@ -18,15 +18,46 @@ class Config {
   constructor(modelFamily = 'gpt-5') {
     this.openaiApiKey = process.env.OPENAI_API_KEY;
     this.openaiBaseUrl = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
-    this.port = parseInt(process.env.CLAWD_PORT, 10) || 2001;
+    this.port = this._parsePort(process.env.CLAWD_PORT);
     this.host = '127.0.0.1';
     this.modelFamily = modelFamily;
     this.models = MODEL_FAMILIES[modelFamily] || MODEL_FAMILIES['gpt-5'];
   }
 
+  _parsePort(portEnv) {
+    if (portEnv === undefined || portEnv === null || portEnv === '') {
+      return 2001;
+    }
+    const parsed = parseInt(portEnv, 10);
+    return parsed; // Return even if NaN - validation will catch it
+  }
+
   validate() {
+    const errors = [];
+
     if (!this.openaiApiKey) {
-      throw new Error('OPENAI_API_KEY environment variable is required');
+      errors.push('OPENAI_API_KEY environment variable is required');
+    }
+
+    if (this.port < 1 || this.port > 65535 || isNaN(this.port)) {
+      errors.push(`Invalid port: ${this.port}. Must be between 1 and 65535`);
+    }
+
+    if (!MODEL_FAMILIES[this.modelFamily]) {
+      const validFamilies = Object.keys(MODEL_FAMILIES).join(', ');
+      errors.push(`Invalid model family: ${this.modelFamily}. Valid options: ${validFamilies}`);
+    }
+
+    if (this.openaiBaseUrl) {
+      try {
+        new URL(this.openaiBaseUrl);
+      } catch {
+        errors.push(`Invalid OPENAI_BASE_URL: ${this.openaiBaseUrl}. Must be a valid URL`);
+      }
+    }
+
+    if (errors.length > 0) {
+      throw new Error(errors.join('\n'));
     }
   }
 
