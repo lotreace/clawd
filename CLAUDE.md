@@ -1,6 +1,6 @@
 # Clawd
 
-A Node.js shim that enables Claude Code CLI to work with OpenAI-compatible APIs by translating between Anthropic's Messages API and OpenAI's Chat Completions API.
+A Node.js wrapper that enables Claude Code CLI to work with OpenAI-compatible APIs by translating between Anthropic's Messages API and OpenAI's Chat Completions API.
 
 ## Overview
 
@@ -12,53 +12,130 @@ Clawd acts as a local proxy server that:
 5. Translates responses back to Anthropic format
 6. Supports full streaming for messages and tool use
 
-## Commands
+## Quick Start
 
-- `clawd` - Uses gpt-5 model family (gpt-5-mini, gpt-5, gpt-5-high)
-- `clawd4` - Uses gpt-4o model family (gpt-4o-mini, gpt-4o)
+```bash
+# First run - interactive setup wizard
+clawd
+
+# Subsequent runs - uses saved config
+clawd -p "your prompt"
+
+# usage of clawd and caude
+clawd --help
+```
+
+On first run, clawd will prompt you to select:
+1. **Provider**: OpenAI or Azure OpenAI
+2. **Model family**: gpt-4o or gpt-5
+
+Configuration is saved to `.clawd/config.json` in the current directory.
 
 ## Model Mapping
 
-| Claude Model | clawd (gpt-5) | clawd4 (gpt-4o) |
-|--------------|---------------|-----------------|
-| Haiku        | gpt-5-mini    | gpt-4o-mini     |
-| Sonnet       | gpt-5         | gpt-4o          |
-| Opus         | gpt-5-high    | gpt-4o          |
+| Claude Model | gpt-4o Family | gpt-5 Family |
+|--------------|---------------|--------------|
+| Haiku        | gpt-4o-mini   | gpt-5-mini   |
+| Sonnet       | gpt-4o        | gpt-5        |
+| Opus         | gpt-4o        | gpt-5-high   |
+
+For Azure, the same model names are used as default deployment names. Override with `AZURE_DEPLOYMENT_*` env vars if your deployment names differ.
 
 ## Environment Variables
+
+### OpenAI
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `OPENAI_API_KEY` | Yes | - | Your OpenAI API key |
 | `OPENAI_BASE_URL` | No | `https://api.openai.com/v1` | OpenAI-compatible endpoint |
+
+### Azure OpenAI
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `AZURE_OPENAI_ENDPOINT` | Yes | - | Azure OpenAI endpoint (e.g., `https://your-resource.openai.azure.com`) |
+| `AZURE_OPENAI_API_KEY` | Yes | - | Azure OpenAI API key |
+| `AZURE_DEPLOYMENT_HAIKU` | No | Model family haiku name | Override deployment name for Haiku-tier |
+| `AZURE_DEPLOYMENT_SONNET` | No | Model family sonnet name | Override deployment name for Sonnet-tier |
+| `AZURE_DEPLOYMENT_OPUS` | No | Model family opus name | Override deployment name for Opus-tier |
+| `AZURE_API_VERSION` | No | `2024-02-15-preview` | Azure API version |
+
+### Common
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
 | `CLAWD_PORT` | No | `2001` | Local server port |
-| `CLAWD_LOG` | No | `./clawd.log` | Log file path |
+| `CLAWD_LOG` | No | - | Log file path (logging disabled if not set) |
 
 ## Usage
+
+### OpenAI
 
 ```bash
 # Set your API key
 export OPENAI_API_KEY=your-key-here
 
-# Run with gpt-5 family
-clawd -p "your prompt"
+# Run clawd (first time: setup wizard, then launches Claude)
+clawd
 
-# Run with gpt-4o family
-clawd4 -p "your prompt"
+# Non-interactive mode
+clawd -p "your prompt"
 
 # All Claude Code arguments are passed through
 clawd --help
 ```
 
+### Azure OpenAI
+
+```bash
+# Set Azure configuration
+export AZURE_OPENAI_ENDPOINT="https://your-resource.openai.azure.com"
+export AZURE_OPENAI_API_KEY="your-azure-api-key"
+
+# Run clawd (setup wizard will ask for model family)
+clawd
+
+# Optional: override deployment names if they differ from model names
+export AZURE_DEPLOYMENT_HAIKU="custom-haiku-deployment"
+export AZURE_DEPLOYMENT_SONNET="custom-sonnet-deployment"
+export AZURE_DEPLOYMENT_OPUS="custom-opus-deployment"
+```
+
+## Configuration
+
+Clawd stores configuration in `.clawd/config.json`:
+
+```json
+{
+  "provider": "openai",
+  "modelFamily": "gpt-4o"
+}
+```
+
+Or for Azure:
+
+```json
+{
+  "provider": "azure",
+  "modelFamily": "gpt-4o"
+}
+```
+
+To reconfigure, delete `.clawd/config.json` and run `clawd` again.
+
 ## Architecture
 
 ```
 src/
-├── main.js                    # Entry point with run(modelFamily)
+├── main.js                    # Entry point
 ├── ClawdServer.js             # Express server setup
 ├── ClaudeLauncher.js          # Spawns Claude Code subprocess
 ├── config/
-│   └── Config.js              # Configuration and model families
+│   ├── Config.js              # Configuration and model families
+│   └── ConfigStore.js         # Reads/writes .clawd/config.json
+├── setup/
+│   └── SetupWizard.js         # Interactive setup prompts
 ├── handlers/
 │   └── MessagesHandler.js     # Request/response handling
 ├── hooks/
@@ -113,7 +190,7 @@ npm run test:integration  # Integration tests only
 
 1. Make changes to files in `src/`
 2. Test locally: `./bin/clawd.js -p "test prompt"`
-3. Check logs: `cat clawd.log`
+3. Enable logging: `CLAWD_LOG=clawd.log ./bin/clawd.js -p "test"`
 4. Run tests before submitting
 
 ### Code Style
@@ -122,10 +199,3 @@ npm run test:integration  # Integration tests only
 - OOP style - each class in its own file
 - Class filename matches class name
 - Use Logger for all logging (not console.log)
-
-### Adding a New Model Family
-
-1. Add entry to `MODEL_FAMILIES` in `src/config/Config.js`
-2. Create new bin script in `bin/` that calls `run('your-family')`
-3. Add bin entry to `package.json`
-4. Update `ThinkingModeHook.js` if model has special reasoning support

@@ -2,4 +2,4 @@
 
 import { run } from '../src/main.js';
 
-run('gpt-5');
+run();

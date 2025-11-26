@@ -5,8 +5,7 @@
   "type": "module",
   "main": "src/ClawdServer.js",
   "bin": {
-    "clawd": "./bin/clawd.js",
-    "clawd4": "./bin/clawd4.js"
+    "clawd": "./bin/clawd.js"
   },
   "scripts": {
     "start": "node bin/clawd.js",
@@ -18,6 +17,7 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
+    "@inquirer/prompts": "^8.0.1",
     "express": "^4.18.2",
     "openai": "^4.73.0"
   },

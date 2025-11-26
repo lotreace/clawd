@@ -1,27 +1,93 @@
 import { resolve } from 'path';
 import { Config } from './config/Config.js';
+import { ConfigStore } from './config/ConfigStore.js';
 import { ClawdServer } from './ClawdServer.js';
 import { ClaudeLauncher } from './ClaudeLauncher.js';
+import { SetupWizard } from './setup/SetupWizard.js';
 import { Logger } from './utils/Logger.js';
 
-async function run(modelFamily) {
-  const logFile = process.env.CLAWD_LOG || resolve(process.cwd(), 'clawd.log');
-  Logger.setLogFile(logFile);
+function printHelp() {
+  console.log(`
+Clawd - Claude Code CLI with OpenAI-compatible backends
+
+Usage: clawd [options]
+
+Environment Variables (OpenAI):
+  OPENAI_API_KEY            (required) OpenAI API key
+  OPENAI_BASE_URL           (optional) OpenAI-compatible endpoint URL
+
+Environment Variables (Azure):
+  AZURE_OPENAI_ENDPOINT     (required) Azure OpenAI endpoint URL
+  AZURE_OPENAI_API_KEY      (required) Azure OpenAI API key
+  AZURE_DEPLOYMENT_HAIKU    (optional) Override deployment name for Haiku-tier (default: model name)
+  AZURE_DEPLOYMENT_SONNET   (optional) Override deployment name for Sonnet-tier (default: model name)
+  AZURE_DEPLOYMENT_OPUS     (optional) Override deployment name for Opus-tier (default: model name)
+  AZURE_API_VERSION         (optional) Azure API version (default: 2024-02-15-preview)
+
+Common:
+  CLAWD_PORT                (optional) Local proxy port (default: 2001)
+  CLAWD_LOG                 (optional) Log file path (logging disabled if not set)
+
+----------------------------------
+`);
+}
+
+function createConfig(storedConfig) {
+  const modelFamily = storedConfig?.modelFamily || 'gpt-4o';
+  const useAzure = storedConfig?.provider === 'azure';
+  return new Config(modelFamily, useAzure);
+}
+
+async function run() {
+  // Only enable logging if CLAWD_LOG is explicitly set
+  if (process.env.CLAWD_LOG) {
+    const logFile = resolve(process.cwd(), process.env.CLAWD_LOG);
+    Logger.setLogFile(logFile);
+  }
 
   const logger = new Logger('clawd');
-
-  const config = new Config(modelFamily);
+  const configStore = new ConfigStore();
   const claudeArgs = process.argv.slice(2);
 
-  logger.info(`Log file: ${logFile}`);
-  logger.info(`Model family: ${modelFamily}`);
-  logger.info(`Claude args: ${claudeArgs.join(' ')}`);
+  // Check if --help is requested
+  const hasHelp = claudeArgs.includes('--help') || claudeArgs.includes('-h');
+
+  if (hasHelp) {
+    printHelp();
+    // Continue to pass --help to Claude process
+  }
+
+  // Load stored config if it exists
+  let storedConfig = configStore.exists() ? configStore.load() : null;
+  let config = createConfig(storedConfig);
+
+  // Run setup wizard if no config or missing env vars
+  if (!storedConfig || !config.hasRequiredEnvVars()) {
+    // Don't run wizard if just asking for help
+    if (hasHelp) {
+      console.log('Run clawd without --help to configure.\n');
+    } else {
+      const wizard = new SetupWizard(configStore);
+      storedConfig = await wizard.run();
+      config = createConfig(storedConfig);
+    }
+  }
+
+  if (Logger.isEnabled()) {
+    logger.info(`Config: ${configStore.getConfigPath()}`);
+    logger.info(`Provider: ${storedConfig?.provider || 'openai'}`);
+    logger.info(`Model family: ${config.modelFamily}`);
+    logger.info(`Claude args: ${claudeArgs.join(' ')}`);
+  }
 
   try {
     config.validate();
   } catch (error) {
-    logger.error(error.message);
-    console.error(error.message);
+    if (Logger.isEnabled()) {
+      logger.error(error.message);
+    }
+    console.error('\n' + error.message);
+    console.log('\nPlease set the required environment variables and try again.\n');
     process.exit(1);
   }
 

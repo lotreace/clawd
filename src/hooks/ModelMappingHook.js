@@ -18,7 +18,8 @@ class ModelMappingHook {
       request.model = models.haiku;
     }
 
-    this.logger.info(`Mapped model to: ${request.model}`);
+    const mode = this.config.useAzure ? 'Azure deployment' : 'OpenAI model';
+    this.logger.info(`Mapped to ${mode}: ${request.model}`);
     return request;
   }
 }

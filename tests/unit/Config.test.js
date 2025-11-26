@@ -19,8 +19,9 @@ describe('Config', () => {
 
       expect(config.port).toBe(2001);
       expect(config.host).toBe('127.0.0.1');
-      expect(config.modelFamily).toBe('gpt-5');
+      expect(config.modelFamily).toBe('gpt-4o');
       expect(config.openaiBaseUrl).toBe('https://api.openai.com/v1');
+      expect(config.useAzure).toBe(false);
     });
 
     it('should use custom port from environment', () => {
@@ -57,10 +58,10 @@ describe('Config', () => {
       expect(config.models.supportsReasoning).toBe(false);
     });
 
-    it('should fall back to gpt-5 for unknown model family', () => {
+    it('should fall back to gpt-4o for unknown model family', () => {
       const config = new Config('unknown-family');
 
-      expect(config.models).toEqual(MODEL_FAMILIES['gpt-5']);
+      expect(config.models).toEqual(MODEL_FAMILIES['gpt-4o']);
     });
   });
 
@@ -147,6 +148,134 @@ describe('Config', () => {
       const envVars = config.getAnthropicEnvVars();
 
       expect(envVars.ANTHROPIC_BASE_URL).toBe('http://127.0.0.1:3001');
+    });
+  });
+
+  describe('Azure configuration', () => {
+    beforeEach(() => {
+      delete process.env.OPENAI_API_KEY;
+      process.env.AZURE_OPENAI_ENDPOINT = 'https://test-resource.openai.azure.com';
+      process.env.AZURE_OPENAI_API_KEY = 'azure-test-key';
+    });
+
+    it('should enable Azure mode when useAzure is true', () => {
+      const config = new Config('gpt-4o', true);
+
+      expect(config.useAzure).toBe(true);
+      expect(config.azureEndpoint).toBe('https://test-resource.openai.azure.com');
+      expect(config.azureApiKey).toBe('azure-test-key');
+    });
+
+    it('should use default API version', () => {
+      const config = new Config('gpt-4o', true);
+
+      expect(config.azureApiVersion).toBe('2024-02-15-preview');
+    });
+
+    it('should use custom API version from environment', () => {
+      process.env.AZURE_API_VERSION = '2024-06-01';
+
+      const config = new Config('gpt-4o', true);
+
+      expect(config.azureApiVersion).toBe('2024-06-01');
+    });
+
+    it('should use model names as default deployment names', () => {
+      const config = new Config('gpt-4o', true);
+
+      expect(config.models.haiku).toBe('gpt-4o-mini');
+      expect(config.models.sonnet).toBe('gpt-4o');
+      expect(config.models.opus).toBe('gpt-4o');
+    });
+
+    it('should allow overriding deployment names via env vars', () => {
+      process.env.AZURE_DEPLOYMENT_HAIKU = 'custom-haiku';
+      process.env.AZURE_DEPLOYMENT_SONNET = 'custom-sonnet';
+      process.env.AZURE_DEPLOYMENT_OPUS = 'custom-opus';
+
+      const config = new Config('gpt-4o', true);
+
+      expect(config.models.haiku).toBe('custom-haiku');
+      expect(config.models.sonnet).toBe('custom-sonnet');
+      expect(config.models.opus).toBe('custom-opus');
+    });
+
+    it('should pass validation with valid Azure config', () => {
+      const config = new Config('gpt-4o', true);
+
+      expect(() => config.validate()).not.toThrow();
+    });
+
+    it('should fail validation without Azure endpoint', () => {
+      delete process.env.AZURE_OPENAI_ENDPOINT;
+
+      const config = new Config('gpt-4o', true);
+
+      expect(() => config.validate()).toThrow('AZURE_OPENAI_ENDPOINT');
+    });
+
+    it('should fail validation without Azure API key', () => {
+      delete process.env.AZURE_OPENAI_API_KEY;
+
+      const config = new Config('gpt-4o', true);
+
+      expect(() => config.validate()).toThrow('AZURE_OPENAI_API_KEY');
+    });
+
+    it('should fail validation with invalid Azure endpoint URL', () => {
+      process.env.AZURE_OPENAI_ENDPOINT = 'not-a-valid-url';
+
+      const config = new Config('gpt-4o', true);
+
+      expect(() => config.validate()).toThrow('Invalid AZURE_OPENAI_ENDPOINT');
+    });
+
+    it('should not require OPENAI_API_KEY in Azure mode', () => {
+      const config = new Config('gpt-4o', true);
+
+      expect(() => config.validate()).not.toThrow();
+    });
+
+    it('should use gpt-5 model names for Azure when gpt-5 family selected', () => {
+      const config = new Config('gpt-5', true);
+
+      expect(config.models.haiku).toBe('gpt-5-mini');
+      expect(config.models.sonnet).toBe('gpt-5');
+      expect(config.models.opus).toBe('gpt-5-high');
+    });
+  });
+
+  describe('hasRequiredEnvVars', () => {
+    it('should return true when OpenAI API key is set', () => {
+      const config = new Config();
+
+      expect(config.hasRequiredEnvVars()).toBe(true);
+    });
+
+    it('should return false when OpenAI API key is missing', () => {
+      delete process.env.OPENAI_API_KEY;
+
+      const config = new Config();
+
+      expect(config.hasRequiredEnvVars()).toBe(false);
+    });
+
+    it('should return true when Azure credentials are set', () => {
+      delete process.env.OPENAI_API_KEY;
+      process.env.AZURE_OPENAI_ENDPOINT = 'https://test.openai.azure.com';
+      process.env.AZURE_OPENAI_API_KEY = 'azure-key';
+
+      const config = new Config('gpt-4o', true);
+
+      expect(config.hasRequiredEnvVars()).toBe(true);
+    });
+
+    it('should return false when Azure credentials are missing', () => {
+      delete process.env.OPENAI_API_KEY;
+
+      const config = new Config('gpt-4o', true);
+
+      expect(config.hasRequiredEnvVars()).toBe(false);
     });
   });
 });

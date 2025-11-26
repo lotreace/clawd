@@ -1,4 +1,4 @@
-import OpenAI from 'openai';
+import OpenAI, { AzureOpenAI } from 'openai';
 import { RequestTranslator } from '../translators/RequestTranslator.js';
 import { ResponseTranslator } from '../translators/ResponseTranslator.js';
 import { StreamTranslator } from '../translators/StreamTranslator.js';
@@ -21,10 +21,24 @@ class MessagesHandler {
     this.hookRegistry.registerPreRequest(new ModelMappingHook(config));
     this.hookRegistry.registerPreRequest(new ThinkingModeHook(config));
 
-    this.openai = new OpenAI({
-      apiKey: config.openaiApiKey,
-      baseURL: config.openaiBaseUrl
-    });
+    this.openai = this._createOpenAIClient(config);
+  }
+
+  _createOpenAIClient(config) {
+    if (config.useAzure) {
+      this.logger.info('Using Azure OpenAI client');
+      return new AzureOpenAI({
+        apiKey: config.azureApiKey,
+        endpoint: config.azureEndpoint,
+        apiVersion: config.azureApiVersion
+      });
+    } else {
+      this.logger.info('Using standard OpenAI client');
+      return new OpenAI({
+        apiKey: config.openaiApiKey,
+        baseURL: config.openaiBaseUrl
+      });
+    }
   }
 
   async handle(req, res) {

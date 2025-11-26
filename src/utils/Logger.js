@@ -1,6 +1,7 @@
 import { appendFileSync } from 'fs';
 
 let logFile = null;
+let loggingEnabled = false;
 
 class Logger {
   constructor(name) {
@@ -9,6 +10,11 @@ class Logger {
 
   static setLogFile(path) {
     logFile = path;
+    loggingEnabled = true;
+  }
+
+  static isEnabled() {
+    return loggingEnabled;
   }
 
   _format(level, message) {
@@ -17,23 +23,22 @@ class Logger {
   }
 
   _write(formatted) {
+    if (!loggingEnabled) {
+      return;
+    }
     if (logFile) {
       appendFileSync(logFile, formatted + '\n');
-    } else {
-      console.log(formatted);
     }
   }
 
   _writeError(formatted, error = null) {
+    if (!loggingEnabled) {
+      return;
+    }
     if (logFile) {
       appendFileSync(logFile, formatted + '\n');
       if (error) {
         appendFileSync(logFile, error.stack || String(error) + '\n');
-      }
-    } else {
-      console.error(formatted);
-      if (error) {
-        console.error(error);
       }
     }
   }
