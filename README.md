@@ -1,8 +1,8 @@
 # Clawd
 
-Run [Claude Code CLI](https://github.com/anthropics/claude-code) with OpenAI or Azure OpenAI backends.
+Run [Claude Code CLI](https://github.com/anthropics/claude-code) or [Gemini CLI](https://github.com/google-gemini/gemini-cli) with OpenAI or Azure OpenAI backends.
 
-Clawd is a local proxy that translates between Anthropic's Messages API and OpenAI's Chat Completions API, allowing you to use Claude Code with GPT models.
+Clawd is a local proxy that translates between Anthropic/Gemini APIs and OpenAI's Chat Completions API, allowing you to use Claude Code or Gemini CLI with GPT models.
 
 ## Installation
 
@@ -45,7 +45,21 @@ On first run, clawd will prompt you to select:
 
 Your selection is saved to `.clawd/config.json`. To reconfigure, delete this file and run clawd again.
 
+## Gemini CLI Support
+
+Use the `--gemini` flag to launch Gemini CLI instead of Claude Code:
+
+```bash
+# Run with Gemini CLI
+clawd --gemini
+
+# Non-interactive with prompt
+clawd --gemini "explain this codebase"
+```
+
 ## Model Mapping
+
+### Claude Code
 
 Claude Code requests different model tiers. Clawd maps them to OpenAI models:
 
@@ -54,6 +68,16 @@ Claude Code requests different model tiers. Clawd maps them to OpenAI models:
 | Haiku       | gpt-4o-mini   | gpt-5-mini   |
 | Sonnet      | gpt-4o        | gpt-5        |
 | Opus        | gpt-4o        | gpt-5-high   |
+
+### Gemini CLI
+
+Gemini CLI model selections are mapped as follows:
+
+| Gemini Model | gpt-4o Family | gpt-5 Family |
+|--------------|---------------|--------------|
+| gemini-2.5-pro | gpt-4o | gpt-5 |
+| gemini-2.5-flash | gpt-4o-mini | gpt-5-mini |
+| gemini-2.5-flash-lite | gpt-4o-mini | gpt-5-mini |
 
 ## Environment Variables
 
@@ -87,11 +111,15 @@ For Azure, deployment names default to the model names from your selected family
 ## Usage Examples
 
 ```bash
-# Run clawd (uses saved config if exists)
+# Run clawd with Claude Code (uses saved config if exists)
 clawd
 
 # Non-interactive with prompt
 clawd -p "explain this codebase"
+
+# Run with Gemini CLI instead
+clawd --gemini
+clawd --gemini "list all files"
 
 # Reconfigure provider/model
 clawd --clawd-config
@@ -109,9 +137,9 @@ CLAWD_PORT=3000 clawd
 ## How It Works
 
 1. Clawd starts a local proxy server on `127.0.0.1:2001`
-2. It launches Claude Code CLI pointed at this proxy
-3. Requests from Claude Code are translated to OpenAI format
-4. Responses are translated back to Anthropic format
+2. It launches Claude Code CLI (or Gemini CLI with `--gemini`) pointed at this proxy
+3. Requests are translated to OpenAI format
+4. Responses are translated back to Anthropic/Gemini format
 5. Full streaming support for messages and tool use
 
 ## Features
@@ -119,8 +147,9 @@ CLAWD_PORT=3000 clawd
 - **Interactive setup wizard** - Easy first-time configuration
 - **Model family selection** - Choose between gpt-4o and gpt-5 families
 - **Azure support** - Works with Azure OpenAI Service
+- **Gemini CLI support** - Use `--gemini` flag to run Gemini CLI instead of Claude Code
 - **Thinking mode** - Translates Claude's thinking to OpenAI's reasoning_effort (gpt-5 only)
-- **Tool use** - Full support for Claude Code's tools (Read, Write, Bash, etc.)
+- **Tool use** - Full support for Claude Code and Gemini CLI tools
 - **Streaming** - Real-time streaming for all responses
 
 ## Troubleshooting

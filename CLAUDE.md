@@ -1,15 +1,15 @@
 # Clawd
 
-A Node.js wrapper that enables Claude Code CLI to work with OpenAI-compatible APIs by translating between Anthropic's Messages API and OpenAI's Chat Completions API.
+A Node.js wrapper that enables Claude Code CLI and Gemini CLI to work with OpenAI-compatible APIs by translating between Anthropic/Gemini APIs and OpenAI's Chat Completions API.
 
 ## Overview
 
 Clawd acts as a local proxy server that:
 1. Starts an Express server on `127.0.0.1:2001`
-2. Intercepts requests from Claude Code CLI
-3. Translates Anthropic Messages API format to OpenAI Chat Completions format
+2. Intercepts requests from Claude Code CLI or Gemini CLI
+3. Translates Anthropic/Gemini API format to OpenAI Chat Completions format
 4. Forwards requests to an OpenAI-compatible endpoint
-5. Translates responses back to Anthropic format
+5. Translates responses back to Anthropic/Gemini format
 6. Supports full streaming for messages and tool use
 
 ## Quick Start
@@ -21,7 +21,10 @@ clawd
 # Subsequent runs - uses saved config
 clawd -p "your prompt"
 
-# usage of clawd and caude
+# Run with Gemini CLI instead
+clawd --gemini
+
+# usage of clawd and claude
 clawd --help
 ```
 
@@ -33,11 +36,21 @@ Configuration is saved to `.clawd/config.json` in the current directory.
 
 ## Model Mapping
 
+### Claude Code
+
 | Claude Model | gpt-4o Family | gpt-5 Family |
 |--------------|---------------|--------------|
 | Haiku        | gpt-4o-mini   | gpt-5-mini   |
 | Sonnet       | gpt-4o        | gpt-5        |
 | Opus         | gpt-4o        | gpt-5-high   |
+
+### Gemini CLI
+
+| Gemini Model | gpt-4o Family | gpt-5 Family |
+|--------------|---------------|--------------|
+| gemini-2.5-pro | gpt-4o | gpt-5 |
+| gemini-2.5-flash | gpt-4o-mini | gpt-5-mini |
+| gemini-2.5-flash-lite | gpt-4o-mini | gpt-5-mini |
 
 For Azure, the same model names are used as default deployment names. Override with `AZURE_DEPLOYMENT_*` env vars if your deployment names differ.
 
@@ -130,14 +143,15 @@ To reconfigure, delete `.clawd/config.json` and run `clawd` again.
 src/
 ├── main.js                    # Entry point
 ├── ClawdServer.js             # Express server setup
-├── ClaudeLauncher.js          # Spawns Claude Code subprocess
+├── CLILauncher.js             # Spawns Claude Code or Gemini CLI subprocess
 ├── config/
 │   ├── Config.js              # Configuration and model families
 │   └── ConfigStore.js         # Reads/writes .clawd/config.json
 ├── setup/
 │   └── SetupWizard.js         # Interactive setup prompts
 ├── handlers/
-│   └── MessagesHandler.js     # Request/response handling
+│   ├── MessagesHandler.js     # Anthropic API request/response handling
+│   └── GeminiHandler.js       # Gemini API request/response handling
 ├── hooks/
 │   ├── HookRegistry.js        # Hook management
 │   ├── ModelMappingHook.js    # Maps Claude models to OpenAI models
@@ -145,12 +159,23 @@ src/
 ├── translators/
 │   ├── RequestTranslator.js   # Anthropic → OpenAI request
 │   ├── ResponseTranslator.js  # OpenAI → Anthropic response
-│   └── StreamTranslator.js    # Streaming response translation
+│   ├── StreamTranslator.js    # Anthropic streaming response translation
+│   ├── GeminiRequestTranslator.js   # Gemini → OpenAI request
+│   ├── GeminiResponseTranslator.js  # OpenAI → Gemini response
+│   └── GeminiStreamTranslator.js    # Gemini streaming response translation
 └── utils/
     └── Logger.js              # File logging utility
 ```
 
 ## Key Features
+
+### Gemini CLI Support
+
+Use `--gemini` flag to launch Gemini CLI instead of Claude Code:
+- Translates Gemini API format to OpenAI format
+- Supports all Gemini model tiers (Pro, Flash, Flash-Lite)
+- Full tool calling support
+- Streaming responses
 
 ### Thinking Mode Translation
 
@@ -163,7 +188,7 @@ For gpt-5 models, Claude's thinking mode is translated to OpenAI's `reasoning_ef
 
 ### Tool Use Support
 
-Full support for Claude Code's tool use:
+Full support for Claude Code and Gemini CLI tool use:
 - Tool definitions translated to OpenAI function format
 - Tool calls and results properly mapped
 - Streaming tool use with incremental updates

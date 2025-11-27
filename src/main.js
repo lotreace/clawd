@@ -2,7 +2,7 @@ import { resolve } from 'path';
 import { Config } from './config/Config.js';
 import { ConfigStore } from './config/ConfigStore.js';
 import { ClawdServer } from './ClawdServer.js';
-import { ClaudeLauncher } from './ClaudeLauncher.js';
+import { CLILauncher } from './CLILauncher.js';
 import { SetupWizard } from './setup/SetupWizard.js';
 import { Logger } from './utils/Logger.js';
 
@@ -17,6 +17,7 @@ Options:
   --version, -v           Show version number
   --clawd-config          Run the configuration wizard
   --clawd-show-config     Show current configuration
+  --gemini                Launch Gemini CLI instead of Claude Code
 
 Environment Variables (OpenAI):
   OPENAI_API_KEY            (required) OpenAI API key
@@ -59,6 +60,10 @@ async function run() {
   const hasVersion = claudeArgs.includes('--version') || claudeArgs.includes('-v');
   const hasConfig = claudeArgs.includes('--clawd-config');
   const hasShowConfig = claudeArgs.includes('--clawd-show-config');
+  const hasGemini = claudeArgs.includes('--gemini');
+
+  // Determine target CLI
+  const targetCli = hasGemini ? 'gemini' : 'claude';
 
   if (hasVersion) {
     const pkg = await import('../package.json', { with: { type: 'json' } });
@@ -116,8 +121,11 @@ async function run() {
     process.exit(1);
   }
 
+  // Filter out clawd-specific flags before passing to target CLI
+  const cliArgs = claudeArgs.filter(arg => arg !== '--gemini');
+
   const server = new ClawdServer(config);
-  const launcher = new ClaudeLauncher(config, claudeArgs);
+  const launcher = new CLILauncher(config, cliArgs, targetCli);
 
   const shutdown = async () => {
     logger.info('Shutting down...');
@@ -139,7 +147,8 @@ async function run() {
   }
 
   try {
-    console.log('Launching Claude Code...\n');
+    const cliName = targetCli === 'gemini' ? 'Gemini CLI' : 'Claude Code';
+    console.log(`Launching ${cliName}...\n`);
     const { code, signal } = await launcher.launch();
 
     await server.stop();
@@ -151,10 +160,16 @@ async function run() {
       process.exit(code ?? 0);
     }
   } catch (error) {
-    console.error(`\nFailed to launch Claude: ${error.message}`);
+    const cliName = targetCli === 'gemini' ? 'Gemini' : 'Claude';
+    console.error(`\nFailed to launch ${cliName}: ${error.message}`);
     if (error.code === 'ENOENT') {
-      console.error('The "claude" command was not found. Make sure Claude Code CLI is installed.');
-      console.error('Install with: npm install -g @anthropic-ai/claude-code');
+      if (targetCli === 'gemini') {
+        console.error('The "gemini" command was not found. Make sure Gemini CLI is installed.');
+        console.error('Install with: npm install -g @google/gemini-cli');
+      } else {
+        console.error('The "claude" command was not found. Make sure Claude Code CLI is installed.');
+        console.error('Install with: npm install -g @anthropic-ai/claude-code');
+      }
     }
     logger.error('Fatal error', error);
     await server.stop();

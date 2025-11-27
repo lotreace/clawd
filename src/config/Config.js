@@ -125,6 +125,13 @@ class Config {
     };
   }
 
+  getGeminiEnvVars() {
+    return {
+      GOOGLE_GEMINI_BASE_URL: `http://${this.host}:${this.port}`,
+      GEMINI_API_KEY: 'clawd-proxy'
+    };
+  }
+
   hasRequiredEnvVars() {
     if (this.useAzure) {
       return !!(this.azureEndpoint && this.azureApiKey);

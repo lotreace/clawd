@@ -1,5 +1,6 @@
 import express from 'express';
 import { MessagesHandler } from './handlers/MessagesHandler.js';
+import { GeminiHandler } from './handlers/GeminiHandler.js';
 import { HealthHandler } from './handlers/HealthHandler.js';
 import { Logger } from './utils/Logger.js';
 
@@ -20,9 +21,15 @@ class ClawdServer {
 
   _setupRoutes() {
     const messagesHandler = new MessagesHandler(this.config);
+    const geminiHandler = new GeminiHandler(this.config);
     const healthHandler = new HealthHandler();
 
+    // Anthropic/Claude endpoints
     this.app.post('/v1/messages', (req, res) => messagesHandler.handle(req, res));
+
+    // Gemini endpoints
+    this.app.post('/v1beta/models/:model\\:generateContent', (req, res) => geminiHandler.handleGenerateContent(req, res));
+    this.app.post('/v1beta/models/:model\\:streamGenerateContent', (req, res) => geminiHandler.handleStreamGenerateContent(req, res));
 
     this.app.get('/health', (req, res) => healthHandler.handle(req, res));
 
@@ -30,7 +37,7 @@ class ClawdServer {
       res.json({
         service: 'clawd',
         version: '1.0.0',
-        endpoints: ['/v1/messages', '/health']
+        endpoints: ['/v1/messages', '/v1beta/models/:model:generateContent', '/v1beta/models/:model:streamGenerateContent', '/health']
       });
     });
   }
