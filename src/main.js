@@ -22,7 +22,7 @@ Environment Variables (Azure):
   AZURE_DEPLOYMENT_HAIKU    (optional) Override deployment name for Haiku-tier (default: model name)
   AZURE_DEPLOYMENT_SONNET   (optional) Override deployment name for Sonnet-tier (default: model name)
   AZURE_DEPLOYMENT_OPUS     (optional) Override deployment name for Opus-tier (default: model name)
-  AZURE_API_VERSION         (optional) Azure API version (default: 2024-02-15-preview)
+  AZURE_API_VERSION         (optional) Azure API version (fallback: OPENAI_API_VERSION, default: 2024-02-15-preview)
 
 Common:
   CLAWD_PORT                (optional) Local proxy port (default: 2001)

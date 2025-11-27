@@ -27,7 +27,7 @@ class Config {
     // Azure configuration
     this.azureEndpoint = process.env.AZURE_OPENAI_ENDPOINT;
     this.azureApiKey = process.env.AZURE_OPENAI_API_KEY;
-    this.azureApiVersion = process.env.AZURE_API_VERSION || '2024-02-15-preview';
+    this.azureApiVersion = process.env.AZURE_API_VERSION || process.env.OPENAI_API_VERSION || '2024-02-15-preview';
 
     // Get base models from family
     const baseModels = MODEL_FAMILIES[modelFamily] || MODEL_FAMILIES['gpt-4o'];
