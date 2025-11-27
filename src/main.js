@@ -12,6 +12,12 @@ Clawd - Claude Code CLI with OpenAI-compatible backends
 
 Usage: clawd [options]
 
+Options:
+  --help, -h              Show this help message
+  --version, -v           Show version number
+  --clawd-config          Run the configuration wizard
+  --clawd-show-config     Show current configuration
+
 Environment Variables (OpenAI):
   OPENAI_API_KEY            (required) OpenAI API key
   OPENAI_BASE_URL           (optional) OpenAI-compatible endpoint URL
@@ -51,6 +57,8 @@ async function run() {
   // Check for clawd-specific flags
   const hasHelp = claudeArgs.includes('--help') || claudeArgs.includes('-h');
   const hasVersion = claudeArgs.includes('--version') || claudeArgs.includes('-v');
+  const hasConfig = claudeArgs.includes('--clawd-config');
+  const hasShowConfig = claudeArgs.includes('--clawd-show-config');
 
   if (hasVersion) {
     const pkg = await import('../package.json', { with: { type: 'json' } });
@@ -66,11 +74,29 @@ async function run() {
   // Load stored config if it exists
   let storedConfig = configStore.exists() ? configStore.load() : null;
 
-  // Always show config menu
-  const wizard = new SetupWizard(configStore);
-  storedConfig = await wizard.run(storedConfig);
+  if (hasShowConfig) {
+    if (storedConfig) {
+      console.log('\nCurrent configuration:\n');
+      console.log(`  Config file: ${configStore.getConfigPath()}`);
+      console.log(`  Provider:    ${storedConfig.provider}`);
+      console.log(`  Model:       ${storedConfig.modelFamily}`);
+      if (storedConfig.reasoningEffort) {
+        console.log(`  Reasoning:   ${storedConfig.reasoningEffort}`);
+      }
+      console.log('');
+    } else {
+      console.log('\nNo configuration found. Run "clawd" to set up.\n');
+    }
+    process.exit(0);
+  }
 
+  // Run wizard if: no config, missing env vars, or --config flag
   let config = createConfig(storedConfig);
+  if (!storedConfig || !config.hasRequiredEnvVars() || hasConfig) {
+    const wizard = new SetupWizard(configStore);
+    storedConfig = await wizard.run(storedConfig);
+    config = createConfig(storedConfig);
+  }
 
   if (Logger.isEnabled()) {
     logger.info(`Config: ${configStore.getConfigPath()}`);
@@ -104,13 +130,16 @@ async function run() {
   process.on('SIGINT', shutdown);
 
   try {
+    console.log(`\nStarting clawd proxy on port ${config.port}...`);
     await server.start();
+    console.log(`Proxy ready on http://${config.host}:${config.port}`);
   } catch (error) {
     console.error(`\nFailed to start server: ${error.message}`);
     process.exit(1);
   }
 
   try {
+    console.log('Launching Claude Code...\n');
     const { code, signal } = await launcher.launch();
 
     await server.stop();

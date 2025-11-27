@@ -7,10 +7,10 @@ Clawd is a local proxy that translates between Anthropic's Messages API and Open
 ## Installation
 
 ```bash
-npm install -g clawd
+npm install -g @lotreace/clawd
 ```
 
-Then run directly:
+Then run:
 
 ```bash
 clawd
@@ -87,21 +87,23 @@ For Azure, deployment names default to the model names from your selected family
 ## Usage Examples
 
 ```bash
-# Interactive mode
+# Run clawd (uses saved config if exists)
 clawd
 
 # Non-interactive with prompt
 clawd -p "explain this codebase"
+
+# Reconfigure provider/model
+clawd --clawd-config
+
+# Show current configuration
+clawd --clawd-show-config
 
 # Enable debug logging
 CLAWD_LOG=clawd.log clawd
 
 # Use custom port
 CLAWD_PORT=3000 clawd
-
-# Pass any Claude Code arguments
-clawd --help
-clawd --version
 ```
 
 ## How It Works
@@ -140,10 +142,8 @@ export AZURE_OPENAI_API_KEY="your-api-key"
 
 ### Reconfigure provider or model
 
-Delete the config file and run again:
 ```bash
-rm -rf .clawd
-clawd
+clawd --clawd-config
 ```
 
 ### Enable debug logging

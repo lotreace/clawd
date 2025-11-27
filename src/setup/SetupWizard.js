@@ -65,6 +65,9 @@ class SetupWizard {
   }
 
   async _selectReasoningEffort(defaultValue) {
+    console.log('\n  Reasoning effort controls how much "thinking" the model does.');
+    console.log('  Higher effort = better quality but slower and more expensive.\n');
+
     return await select({
       message: 'Select reasoning effort for Sonnet (gpt-5):',
       default: defaultValue || 'low',
