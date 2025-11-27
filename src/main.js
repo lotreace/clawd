@@ -106,7 +106,15 @@ async function run() {
 
   try {
     await server.start();
+  } catch (error) {
+    console.error(`\nFailed to start server: ${error.message}`);
+    if (error.code === 'EADDRINUSE') {
+      console.error(`Port ${config.port} is already in use. Try setting CLAWD_PORT to a different port.`);
+    }
+    process.exit(1);
+  }
 
+  try {
     const { code, signal } = await launcher.launch();
 
     await server.stop();
@@ -118,6 +126,11 @@ async function run() {
       process.exit(code ?? 0);
     }
   } catch (error) {
+    console.error(`\nFailed to launch Claude: ${error.message}`);
+    if (error.code === 'ENOENT') {
+      console.error('The "claude" command was not found. Make sure Claude Code CLI is installed.');
+      console.error('Install with: npm install -g @anthropic-ai/claude-code');
+    }
     logger.error('Fatal error', error);
     await server.stop();
     process.exit(1);

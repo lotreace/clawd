@@ -36,10 +36,15 @@ class ClawdServer {
   }
 
   start() {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       this.server = this.app.listen(this.config.port, this.config.host, () => {
         this.logger.info(`Server listening on http://${this.config.host}:${this.config.port}`);
         resolve();
+      });
+
+      this.server.on('error', (error) => {
+        this.logger.error('Server error', error);
+        reject(error);
       });
     });
   }
