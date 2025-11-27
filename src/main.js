@@ -107,9 +107,6 @@ async function run() {
     await server.start();
   } catch (error) {
     console.error(`\nFailed to start server: ${error.message}`);
-    if (error.code === 'EADDRINUSE') {
-      console.error(`Port ${config.port} is already in use. Try setting CLAWD_PORT to a different port.`);
-    }
     process.exit(1);
   }
 

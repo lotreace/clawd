@@ -36,15 +36,33 @@ class ClawdServer {
   }
 
   start() {
+    return this._tryListen(this.config.port);
+  }
+
+  _tryListen(port, maxAttempts = 100) {
     return new Promise((resolve, reject) => {
-      this.server = this.app.listen(this.config.port, this.config.host, () => {
-        this.logger.info(`Server listening on http://${this.config.host}:${this.config.port}`);
+      const attemptedPort = port;
+
+      if (port - this.config.port >= maxAttempts) {
+        reject(new Error(`Could not find free port after ${maxAttempts} attempts`));
+        return;
+      }
+
+      this.server = this.app.listen(port, this.config.host, () => {
+        this.config.port = port; // Update config with actual port
+        this.logger.info(`Server listening on http://${this.config.host}:${port}`);
         resolve();
       });
 
       this.server.on('error', (error) => {
-        this.logger.error('Server error', error);
-        reject(error);
+        if (error.code === 'EADDRINUSE') {
+          this.logger.info(`Port ${attemptedPort} in use, trying ${attemptedPort + 1}...`);
+          this.server = null;
+          this._tryListen(port + 1, maxAttempts).then(resolve).catch(reject);
+        } else {
+          this.logger.error('Server error', error);
+          reject(error);
+        }
       });
     });
   }
