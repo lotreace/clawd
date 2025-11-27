@@ -1,11 +1,11 @@
 {
-  "name": "clawd",
-  "version": "1.0.0",
+  "name": "@lotreace/clawd",
+  "version": "1.0.3",
   "description": "Node.js shim between Claude Code CLI and OpenAI-compatible APIs",
   "type": "module",
   "main": "src/ClawdServer.js",
   "bin": {
-    "clawd": "./bin/clawd.js"
+    "clawd": "bin/clawd.js"
   },
   "scripts": {
     "start": "node bin/clawd.js",
@@ -32,6 +32,14 @@
     "proxy",
     "shim"
   ],
-  "author": "",
-  "license": "MIT"
+  "author": "lotreace",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lotreace/clawd.git"
+  },
+  "homepage": "https://github.com/lotreace/clawd#readme",
+  "bugs": {
+    "url": "https://github.com/lotreace/clawd/issues"
+  }
 }

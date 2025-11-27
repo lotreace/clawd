@@ -27,8 +27,6 @@ Environment Variables (Azure):
 Common:
   CLAWD_PORT                (optional) Local proxy port (default: 2001)
   CLAWD_LOG                 (optional) Log file path (logging disabled if not set)
-
-----------------------------------
 `);
 }
 
@@ -50,26 +48,27 @@ async function run() {
   const configStore = new ConfigStore();
   const claudeArgs = process.argv.slice(2);
 
-  // Check if --help is requested
+  // Check for clawd-specific flags
   const hasHelp = claudeArgs.includes('--help') || claudeArgs.includes('-h');
+  const hasVersion = claudeArgs.includes('--version') || claudeArgs.includes('-v');
+
+  if (hasVersion) {
+    const pkg = await import('../package.json', { with: { type: 'json' } });
+    console.log(`clawd ${pkg.default.version}`);
+    process.exit(0);
+  }
 
   if (hasHelp) {
     printHelp();
-    // Continue to pass --help to Claude process
+    process.exit(0);
   }
 
   // Load stored config if it exists
   let storedConfig = configStore.exists() ? configStore.load() : null;
 
-  // Always show config menu unless just asking for help
-  if (hasHelp) {
-    if (!storedConfig) {
-      console.log('Run clawd without --help to configure.\n');
-    }
-  } else {
-    const wizard = new SetupWizard(configStore);
-    storedConfig = await wizard.run(storedConfig);
-  }
+  // Always show config menu
+  const wizard = new SetupWizard(configStore);
+  storedConfig = await wizard.run(storedConfig);
 
   let config = createConfig(storedConfig);
 

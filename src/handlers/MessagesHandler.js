@@ -27,10 +27,13 @@ class MessagesHandler {
   _createOpenAIClient(config) {
     if (config.useAzure) {
       this.logger.info('Using Azure OpenAI client');
+      // Explicitly set baseURL to undefined to prevent conflict with endpoint
+      // The openai package may auto-detect OPENAI_BASE_URL from environment
       return new AzureOpenAI({
         apiKey: config.azureApiKey,
         endpoint: config.azureEndpoint,
-        apiVersion: config.azureApiVersion
+        apiVersion: config.azureApiVersion,
+        baseURL: undefined
       });
     } else {
       this.logger.info('Using standard OpenAI client');
