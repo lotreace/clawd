@@ -10,10 +10,10 @@ Clawd is a local proxy that translates between Anthropic's Messages API and Open
 npm install -g clawd
 ```
 
-Or run directly:
+Then run directly:
 
 ```bash
-npx clawd
+clawd
 ```
 
 ## Quick Start
@@ -152,6 +152,13 @@ clawd
 CLAWD_LOG=clawd.log clawd
 cat clawd.log
 ```
+
+## Run in dev mode
+
+```bash
+npx clawd
+```
+
 
 ## License
 
