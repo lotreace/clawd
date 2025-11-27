@@ -21,29 +21,22 @@ class ThinkingModeHook {
         request.max_completion_tokens = this.config.models.maxTokens;
       }
     } else {
-      if (model.includes('gpt-5-high')) {
+      // Apply reasoning effort based on model tier
+      if (model.includes('gpt-5-mini')) {
+        // Haiku tier - skip reasoning for mini models
+        this.logger.info('Skipping reasoning_effort for gpt-5-mini (Haiku)');
+      } else if (model.includes('gpt-5-high')) {
+        // Opus tier - always use high
         request.reasoning_effort = 'high';
         this.logger.info('Set reasoning_effort=high for gpt-5-high (Opus)');
-      } else if (model.includes('gpt-5-mini')) {
-        this.logger.info('Skipping reasoning_effort for gpt-5-mini (Haiku)');
       } else if (model.includes('gpt-5')) {
-        if (hasInterleavedThinking) {
-          request.reasoning_effort = 'medium';
-          this.logger.info('Set reasoning_effort=medium for gpt-5 (Sonnet, thinking mode)');
+        // Sonnet tier - use configured effort
+        const configuredEffort = this.config.reasoningEffort || 'low';
+        if (configuredEffort !== 'none') {
+          request.reasoning_effort = configuredEffort;
+          this.logger.info(`Set reasoning_effort=${configuredEffort} for gpt-5 (Sonnet)`);
         } else {
-          request.reasoning_effort = 'low';
-          this.logger.info('Set reasoning_effort=low for gpt-5 (Sonnet, normal mode)');
-        }
-      }
-
-      const thinking = request.thinking;
-      if (thinking) {
-        this.logger.info(`Found 'thinking' parameter: ${JSON.stringify(thinking)}`);
-        if (typeof thinking === 'object' && thinking.type === 'enabled') {
-          if (model.includes('gpt-5') && !model.includes('gpt-5-mini') && !model.includes('gpt-5-high')) {
-            request.reasoning_effort = 'medium';
-            this.logger.info('Set reasoning_effort=medium for gpt-5 (Sonnet with explicit thinking)');
-          }
+          this.logger.info('Reasoning effort disabled (none) for gpt-5 (Sonnet)');
         }
       }
     }

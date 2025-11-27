@@ -14,8 +14,10 @@ const MODEL_FAMILIES = {
   }
 };
 
+const VALID_REASONING_EFFORTS = ['none', 'minimal', 'low', 'medium', 'high'];
+
 class Config {
-  constructor(modelFamily = 'gpt-4o', useAzure = false) {
+  constructor(modelFamily = 'gpt-4o', useAzure = false, reasoningEffort = 'low') {
     // Standard OpenAI configuration
     this.openaiApiKey = process.env.OPENAI_API_KEY;
     this.openaiBaseUrl = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
@@ -23,6 +25,7 @@ class Config {
     this.host = '127.0.0.1';
     this.modelFamily = modelFamily;
     this.useAzure = useAzure;
+    this.reasoningEffort = reasoningEffort;
 
     // Azure configuration
     this.azureEndpoint = process.env.AZURE_OPENAI_ENDPOINT;
@@ -103,6 +106,10 @@ class Config {
       errors.push(`Invalid model family: ${this.modelFamily}. Valid options: ${validFamilies}`);
     }
 
+    if (!VALID_REASONING_EFFORTS.includes(this.reasoningEffort)) {
+      errors.push(`Invalid reasoning effort: ${this.reasoningEffort}. Valid options: ${VALID_REASONING_EFFORTS.join(', ')}`);
+    }
+
     if (errors.length > 0) {
       throw new Error(errors.join('\n'));
     }
@@ -127,4 +134,4 @@ class Config {
   }
 }
 
-export { Config, MODEL_FAMILIES };
+export { Config, MODEL_FAMILIES, VALID_REASONING_EFFORTS };

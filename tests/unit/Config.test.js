@@ -278,4 +278,28 @@ describe('Config', () => {
       expect(config.hasRequiredEnvVars()).toBe(false);
     });
   });
+
+  describe('reasoning effort', () => {
+    it('should use default reasoning effort of low', () => {
+      const config = new Config();
+
+      expect(config.reasoningEffort).toBe('low');
+    });
+
+    it('should accept valid reasoning effort values', () => {
+      const validEfforts = ['none', 'minimal', 'low', 'medium', 'high'];
+
+      for (const effort of validEfforts) {
+        const config = new Config('gpt-4o', false, effort);
+        expect(config.reasoningEffort).toBe(effort);
+        expect(() => config.validate()).not.toThrow();
+      }
+    });
+
+    it('should fail validation with invalid reasoning effort', () => {
+      const config = new Config('gpt-4o', false, 'invalid');
+
+      expect(() => config.validate()).toThrow('Invalid reasoning effort');
+    });
+  });
 });

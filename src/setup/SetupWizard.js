@@ -5,15 +5,20 @@ class SetupWizard {
     this.configStore = configStore;
   }
 
-  async run() {
+  async run(existingConfig = null) {
     console.log('\n┌─────────────────────────────────────────────────┐');
     console.log('│  Clawd Setup                                    │');
     console.log('└─────────────────────────────────────────────────┘\n');
 
-    const provider = await this._selectProvider();
-    const modelFamily = await this._selectModelFamily();
+    const provider = await this._selectProvider(existingConfig?.provider);
+    const modelFamily = await this._selectModelFamily(existingConfig?.modelFamily);
 
-    const config = { provider, modelFamily };
+    let reasoningEffort = null;
+    if (modelFamily === 'gpt-5') {
+      reasoningEffort = await this._selectReasoningEffort(existingConfig?.reasoningEffort);
+    }
+
+    const config = { provider, modelFamily, reasoningEffort };
     this.configStore.save(config);
 
     this._printSummary(config);
@@ -21,9 +26,10 @@ class SetupWizard {
     return config;
   }
 
-  async _selectProvider() {
+  async _selectProvider(defaultValue) {
     return await select({
       message: 'Select your API provider:',
+      default: defaultValue,
       choices: [
         {
           name: 'OpenAI',
@@ -39,9 +45,10 @@ class SetupWizard {
     });
   }
 
-  async _selectModelFamily() {
+  async _selectModelFamily(defaultValue) {
     return await select({
       message: 'Select model family:',
+      default: defaultValue,
       choices: [
         {
           name: 'gpt-4o',
@@ -57,6 +64,40 @@ class SetupWizard {
     });
   }
 
+  async _selectReasoningEffort(defaultValue) {
+    return await select({
+      message: 'Select reasoning effort for Sonnet (gpt-5):',
+      default: defaultValue || 'low',
+      choices: [
+        {
+          name: 'none',
+          value: 'none',
+          description: 'Disabled - no reasoning tokens'
+        },
+        {
+          name: 'minimal',
+          value: 'minimal',
+          description: 'Fastest - few or no reasoning tokens'
+        },
+        {
+          name: 'low',
+          value: 'low',
+          description: 'Quick responses, minimal reasoning (default)'
+        },
+        {
+          name: 'medium',
+          value: 'medium',
+          description: 'Balanced depth and speed'
+        },
+        {
+          name: 'high',
+          value: 'high',
+          description: 'Maximum reasoning depth'
+        }
+      ]
+    });
+  }
+
   _printSummary(config) {
     console.log('\n┌─────────────────────────────────────────────────┐');
     console.log('│  Configuration saved                            │');
@@ -65,6 +106,9 @@ class SetupWizard {
     console.log(`  Config file: ${this.configStore.getConfigPath()}`);
     console.log(`  Provider:    ${config.provider}`);
     console.log(`  Model:       ${config.modelFamily}`);
+    if (config.reasoningEffort) {
+      console.log(`  Reasoning:   ${config.reasoningEffort} (Sonnet only, Opus always uses high)`);
+    }
 
     if (config.provider === 'openai') {
       this._printEnvStatus('OPENAI_API_KEY', process.env.OPENAI_API_KEY);

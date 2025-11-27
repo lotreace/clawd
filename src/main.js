@@ -35,7 +35,8 @@ Common:
 function createConfig(storedConfig) {
   const modelFamily = storedConfig?.modelFamily || 'gpt-4o';
   const useAzure = storedConfig?.provider === 'azure';
-  return new Config(modelFamily, useAzure);
+  const reasoningEffort = storedConfig?.reasoningEffort || 'low';
+  return new Config(modelFamily, useAzure, reasoningEffort);
 }
 
 async function run() {
@@ -59,19 +60,18 @@ async function run() {
 
   // Load stored config if it exists
   let storedConfig = configStore.exists() ? configStore.load() : null;
-  let config = createConfig(storedConfig);
 
-  // Run setup wizard if no config or missing env vars
-  if (!storedConfig || !config.hasRequiredEnvVars()) {
-    // Don't run wizard if just asking for help
-    if (hasHelp) {
+  // Always show config menu unless just asking for help
+  if (hasHelp) {
+    if (!storedConfig) {
       console.log('Run clawd without --help to configure.\n');
-    } else {
-      const wizard = new SetupWizard(configStore);
-      storedConfig = await wizard.run();
-      config = createConfig(storedConfig);
     }
+  } else {
+    const wizard = new SetupWizard(configStore);
+    storedConfig = await wizard.run(storedConfig);
   }
+
+  let config = createConfig(storedConfig);
 
   if (Logger.isEnabled()) {
     logger.info(`Config: ${configStore.getConfigPath()}`);
