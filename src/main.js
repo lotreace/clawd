@@ -75,8 +75,12 @@ function runPassthrough(targetCli, args) {
     const spawnCommand = isNodeScript ? process.execPath : command;
     const spawnArgs = isNodeScript ? [command, ...cliArgs] : cliArgs;
 
+    // On Windows, use shell: true for non-.js commands to resolve .cmd/.bat wrappers
+    const useShell = !isNodeScript && process.platform === 'win32';
+
     const proc = spawn(spawnCommand, spawnArgs, {
-      stdio: 'inherit'
+      stdio: 'inherit',
+      shell: useShell
     });
 
     proc.on('error', (error) => {

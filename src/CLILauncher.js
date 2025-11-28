@@ -64,9 +64,13 @@ class CLILauncher {
 
       this.logger.info(`Launching ${command} ${args.join(' ')}`);
 
+      // On Windows, use shell: true for non-.js commands to resolve .cmd/.bat wrappers
+      const useShell = !isNodeScript && process.platform === 'win32';
+
       this.process = spawn(command, args, {
         env,
-        stdio: 'inherit'
+        stdio: 'inherit',
+        shell: useShell
       });
 
       this.process.on('error', (error) => {
