@@ -1,5 +1,7 @@
-import { resolve } from 'path';
+import { resolve, dirname, join } from 'path';
 import { spawn } from 'child_process';
+import { existsSync } from 'fs';
+import { fileURLToPath } from 'url';
 import { Config } from './config/Config.js';
 import { ConfigStore } from './config/ConfigStore.js';
 import { ClawdServer } from './ClawdServer.js';
@@ -7,10 +9,18 @@ import { CLILauncher } from './CLILauncher.js';
 import { SetupWizard } from './setup/SetupWizard.js';
 import { Logger } from './utils/Logger.js';
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
 // Subcommands that don't need the proxy (just pass through to CLI)
 const CLAUDE_PASSTHROUGH_COMMANDS = ['mcp', 'plugin', 'migrate-installer', 'setup-token', 'doctor', 'update', 'install'];
 const GEMINI_PASSTHROUGH_COMMANDS = ['mcp', 'extensions', 'extension'];
 const GEMINI_PASSTHROUGH_FLAGS = ['--list-extensions', '-l', '--list-sessions', '--delete-session'];
+
+// Map CLI names to their npm package bin paths
+const CLI_PACKAGES = {
+  claude: '@anthropic-ai/claude-code/cli.js',
+  gemini: '@google/gemini-cli/dist/index.js'
+};
 
 function shouldPassthrough(args, targetCli) {
   // Filter out clawd-specific flags to get the actual CLI args
@@ -41,21 +51,58 @@ function shouldPassthrough(args, targetCli) {
   return false;
 }
 
-function runPassthrough(targetCli, args) {
-  return new Promise((resolve) => {
-    const cliArgs = args.filter(arg => arg !== '--gemini');
+function resolveCLIPath(targetCli) {
+  const packagePath = CLI_PACKAGES[targetCli];
+  if (!packagePath) {
+    return { command: targetCli, isNodeScript: false };
+  }
 
-    const proc = spawn(targetCli, cliArgs, {
+  // Try to find the CLI in clawd's node_modules (works for global install)
+  const localPath = join(__dirname, '..', 'node_modules', packagePath);
+  if (existsSync(localPath)) {
+    return { command: localPath, isNodeScript: true };
+  }
+
+  // Fallback to global command
+  return { command: targetCli, isNodeScript: false };
+}
+
+function runPassthrough(targetCli, args) {
+  return new Promise((resolvePromise) => {
+    const cliArgs = args.filter(arg => arg !== '--gemini');
+    const { command, isNodeScript } = resolveCLIPath(targetCli);
+
+    const spawnCommand = isNodeScript ? process.execPath : command;
+    const spawnArgs = isNodeScript ? [command, ...cliArgs] : cliArgs;
+
+    const proc = spawn(spawnCommand, spawnArgs, {
       stdio: 'inherit'
     });
 
     proc.on('error', (error) => {
-      console.error(`Failed to run ${targetCli}: ${error.message}`);
-      resolve(1);
+      const cliName = targetCli === 'gemini' ? 'Gemini CLI' : 'Claude Code';
+      const cliCommand = targetCli === 'gemini' ? 'gemini' : 'claude';
+
+      console.error(`\nFailed to run ${cliName}: ${error.message}`);
+
+      if (error.code === 'ENOENT') {
+        console.error(`\nThe "${cliCommand}" command was not found.`);
+        console.error(`Attempted path: ${command}`);
+        console.error(`\nTo fix this, install the CLI globally:`);
+        if (targetCli === 'gemini') {
+          console.error('  npm install -g @google/gemini-cli');
+        } else {
+          console.error('  npm install -g @anthropic-ai/claude-code');
+        }
+        console.error(`\nOr reinstall clawd to bundle the CLI:`);
+        console.error('  npm install -g @lotreace/clawd');
+      }
+
+      resolvePromise(1);
     });
 
     proc.on('close', (code) => {
-      resolve(code ?? 0);
+      resolvePromise(code ?? 0);
     });
   });
 }
@@ -209,28 +256,47 @@ async function run() {
   try {
     const cliName = targetCli === 'gemini' ? 'Gemini CLI' : 'Claude Code';
     console.log(`Launching ${cliName}...\n`);
-    const { code, signal } = await launcher.launch();
+    const { code, signal, cliPath } = await launcher.launch();
 
     await server.stop();
 
     if (signal) {
       // Re-send the signal to ourselves to propagate it correctly
       process.kill(process.pid, signal);
+    } else if (code !== 0) {
+      // CLI exited with non-zero code
+      console.error(`\n${cliName} exited with error code ${code}`);
+      if (cliPath) {
+        console.error(`CLI path: ${cliPath}`);
+      }
+      process.exit(code ?? 1);
     } else {
-      process.exit(code ?? 0);
+      process.exit(0);
     }
   } catch (error) {
-    const cliName = targetCli === 'gemini' ? 'Gemini' : 'Claude';
+    const cliName = targetCli === 'gemini' ? 'Gemini CLI' : 'Claude Code';
+    const cliCommand = targetCli === 'gemini' ? 'gemini' : 'claude';
+
     console.error(`\nFailed to launch ${cliName}: ${error.message}`);
+
     if (error.code === 'ENOENT') {
-      if (targetCli === 'gemini') {
-        console.error('The "gemini" command was not found. Make sure Gemini CLI is installed.');
-        console.error('Install with: npm install -g @google/gemini-cli');
-      } else {
-        console.error('The "claude" command was not found. Make sure Claude Code CLI is installed.');
-        console.error('Install with: npm install -g @anthropic-ai/claude-code');
+      console.error(`\nThe "${cliCommand}" command was not found.`);
+      if (error.cliPath) {
+        console.error(`Attempted path: ${error.cliPath}`);
       }
+      console.error(`\nTo fix this, install the CLI globally:`);
+      if (targetCli === 'gemini') {
+        console.error('  npm install -g @google/gemini-cli');
+      } else {
+        console.error('  npm install -g @anthropic-ai/claude-code');
+      }
+      console.error(`\nOr reinstall clawd to bundle the CLI:`);
+      console.error('  npm install -g @lotreace/clawd');
+    } else {
+      // Other spawn errors
+      console.error(`\nError details: ${error.stack || error.message}`);
     }
+
     logger.error('Fatal error', error);
     await server.stop();
     process.exit(1);
