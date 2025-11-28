@@ -245,9 +245,7 @@ async function run() {
   process.on('SIGINT', shutdown);
 
   try {
-    console.log(`\nStarting clawd proxy on port ${config.port}...`);
     await server.start();
-    console.log(`Proxy ready on http://${config.host}:${config.port}`);
   } catch (error) {
     console.error(`\nFailed to start server: ${error.message}`);
     process.exit(1);

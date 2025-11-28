@@ -152,6 +152,7 @@ CLAWD_PORT=3000 clawd
 - **Tool use** - Full support for Claude Code and Gemini CLI tools
 - **Streaming** - Real-time streaming for all responses
 - **Passthrough commands** - Management commands run directly without proxy
+- **code-server support** - Automatically aliases `code` to `code-server` for IDE integration
 
 ## Passthrough Commands
 
@@ -208,6 +209,10 @@ clawd --clawd-config
 CLAWD_LOG=clawd.log clawd
 cat clawd.log
 ```
+
+## code-server Support
+
+If you're running in a remote environment with [code-server](https://github.com/coder/code-server) instead of VS Code, clawd automatically handles IDE integration. When `code` is not in PATH but `code-server` is available, clawd creates a temporary alias so that Claude Code and Gemini CLI can install their IDE extensions.
 
 ## Run in dev mode
 

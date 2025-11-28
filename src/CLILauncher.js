@@ -1,7 +1,8 @@
-import { spawn } from 'child_process';
-import { existsSync } from 'fs';
+import { spawn, execSync } from 'child_process';
+import { existsSync, mkdirSync, writeFileSync, chmodSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
+import { tmpdir } from 'os';
 import { Logger } from './utils/Logger.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -48,10 +49,18 @@ class CLILauncher {
       const command = isNodeScript ? process.execPath : cliPath;
       const args = isNodeScript ? [cliPath, ...this.args] : this.args;
 
+      // Set up code -> code-server alias if needed
+      const aliasDir = this._setupCodeAlias();
+
       const env = {
         ...process.env,
         ...this._getEnvVars()
       };
+
+      // Prepend alias directory to PATH if created
+      if (aliasDir) {
+        env.PATH = `${aliasDir}:${env.PATH || ''}`;
+      }
 
       this.logger.info(`Launching ${command} ${args.join(' ')}`);
 
@@ -87,6 +96,50 @@ class CLILauncher {
       return this.config.getGeminiEnvVars();
     }
     return this.config.getAnthropicEnvVars();
+  }
+
+  _commandExists(cmd) {
+    try {
+      execSync(`which ${cmd}`, { stdio: 'ignore' });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  _setupCodeAlias() {
+    // If 'code' already exists, no alias needed
+    if (this._commandExists('code')) {
+      return null;
+    }
+
+    // Check if code-server exists
+    if (!this._commandExists('code-server')) {
+      return null;
+    }
+
+    this.logger.info('Setting up code -> code-server alias');
+
+    // Create a temp directory with a 'code' script that calls code-server
+    const aliasDir = join(tmpdir(), 'clawd-bin');
+    const codePath = join(aliasDir, 'code');
+
+    try {
+      if (!existsSync(aliasDir)) {
+        mkdirSync(aliasDir, { recursive: true });
+      }
+
+      // Create a shell script that forwards to code-server
+      const script = '#!/bin/sh\nexec code-server "$@"\n';
+      writeFileSync(codePath, script);
+      chmodSync(codePath, 0o755);
+
+      this.logger.info(`Created code alias at ${codePath}`);
+      return aliasDir;
+    } catch (error) {
+      this.logger.warn(`Failed to create code alias: ${error.message}`);
+      return null;
+    }
   }
 
   kill() {
