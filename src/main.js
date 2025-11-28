@@ -1,10 +1,64 @@
 import { resolve } from 'path';
+import { spawn } from 'child_process';
 import { Config } from './config/Config.js';
 import { ConfigStore } from './config/ConfigStore.js';
 import { ClawdServer } from './ClawdServer.js';
 import { CLILauncher } from './CLILauncher.js';
 import { SetupWizard } from './setup/SetupWizard.js';
 import { Logger } from './utils/Logger.js';
+
+// Subcommands that don't need the proxy (just pass through to CLI)
+const CLAUDE_PASSTHROUGH_COMMANDS = ['mcp', 'plugin', 'migrate-installer', 'setup-token', 'doctor', 'update', 'install'];
+const GEMINI_PASSTHROUGH_COMMANDS = ['mcp', 'extensions', 'extension'];
+const GEMINI_PASSTHROUGH_FLAGS = ['--list-extensions', '-l', '--list-sessions', '--delete-session'];
+
+function shouldPassthrough(args, targetCli) {
+  // Filter out clawd-specific flags to get the actual CLI args
+  const cliArgs = args.filter(arg => arg !== '--gemini');
+
+  if (cliArgs.length === 0) {
+    return false;
+  }
+
+  const firstArg = cliArgs[0];
+
+  if (targetCli === 'gemini') {
+    // Check for passthrough subcommands
+    if (GEMINI_PASSTHROUGH_COMMANDS.includes(firstArg)) {
+      return true;
+    }
+    // Check for passthrough flags anywhere in args
+    if (cliArgs.some(arg => GEMINI_PASSTHROUGH_FLAGS.includes(arg))) {
+      return true;
+    }
+  } else {
+    // Claude
+    if (CLAUDE_PASSTHROUGH_COMMANDS.includes(firstArg)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function runPassthrough(targetCli, args) {
+  return new Promise((resolve) => {
+    const cliArgs = args.filter(arg => arg !== '--gemini');
+
+    const proc = spawn(targetCli, cliArgs, {
+      stdio: 'inherit'
+    });
+
+    proc.on('error', (error) => {
+      console.error(`Failed to run ${targetCli}: ${error.message}`);
+      resolve(1);
+    });
+
+    proc.on('close', (code) => {
+      resolve(code ?? 0);
+    });
+  });
+}
 
 function printHelp() {
   console.log(`
@@ -64,6 +118,12 @@ async function run() {
 
   // Determine target CLI
   const targetCli = hasGemini ? 'gemini' : 'claude';
+
+  // Check if this is a passthrough command (no proxy needed)
+  if (shouldPassthrough(claudeArgs, targetCli)) {
+    const exitCode = await runPassthrough(targetCli, claudeArgs);
+    process.exit(exitCode);
+  }
 
   if (hasVersion) {
     const pkg = await import('../package.json', { with: { type: 'json' } });

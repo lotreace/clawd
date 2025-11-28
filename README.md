@@ -151,6 +151,33 @@ CLAWD_PORT=3000 clawd
 - **Thinking mode** - Translates Claude's thinking to OpenAI's reasoning_effort (gpt-5 only)
 - **Tool use** - Full support for Claude Code and Gemini CLI tools
 - **Streaming** - Real-time streaming for all responses
+- **Passthrough commands** - Management commands run directly without proxy
+
+## Passthrough Commands
+
+Some CLI commands don't need the proxy and are passed directly to the underlying CLI:
+
+### Claude Code
+
+```bash
+clawd mcp list              # Manage MCP servers
+clawd plugin list           # Manage plugins
+clawd doctor                # Check auto-updater health
+clawd update                # Check for updates
+clawd install               # Install native build
+clawd setup-token           # Set up auth token
+clawd migrate-installer     # Migrate installation
+```
+
+### Gemini CLI
+
+```bash
+clawd --gemini mcp list           # Manage MCP servers
+clawd --gemini extensions list    # Manage extensions
+clawd --gemini --list-extensions  # List extensions
+clawd --gemini --list-sessions    # List sessions
+clawd --gemini --delete-session 1 # Delete a session
+```
 
 ## Troubleshooting
 
