@@ -16,6 +16,7 @@ class MessagesHandler {
     this.logger = new Logger('MessagesHandler');
     this.requestTranslator = new RequestTranslator();
     this.responseTranslator = new ResponseTranslator();
+    this.onFatalError = null; // Set by ClawdServer
 
     this.hookRegistry = new HookRegistry();
     this.hookRegistry.registerPreRequest(new ModelMappingHook(config));
@@ -133,11 +134,17 @@ class MessagesHandler {
   _handleError(res, error) {
     this.logger.error('Request failed', error);
 
+    const statusCode = this._getStatusCode(error);
+
+    // 403 is fatal - notify main process to kill CLI
+    if (statusCode === 403 && this.onFatalError) {
+      this.onFatalError(error);
+    }
+
     if (res.headersSent) {
       return;
     }
 
-    const statusCode = this._getStatusCode(error);
     const errorType = this._getErrorType(statusCode);
 
     res.status(statusCode).json({

@@ -1,11 +1,13 @@
+import { EventEmitter } from 'events';
 import express from 'express';
 import { MessagesHandler } from './handlers/MessagesHandler.js';
 import { GeminiHandler } from './handlers/GeminiHandler.js';
 import { HealthHandler } from './handlers/HealthHandler.js';
 import { Logger } from './utils/Logger.js';
 
-class ClawdServer {
+class ClawdServer extends EventEmitter {
   constructor(config) {
+    super();
     this.config = config;
     this.logger = new Logger('ClawdServer');
     this.app = express();
@@ -23,6 +25,11 @@ class ClawdServer {
     const messagesHandler = new MessagesHandler(this.config);
     const geminiHandler = new GeminiHandler(this.config);
     const healthHandler = new HealthHandler();
+
+    // Pass fatal error handler to handlers
+    const onFatalError = (error) => this.emit('fatal', error);
+    messagesHandler.onFatalError = onFatalError;
+    geminiHandler.onFatalError = onFatalError;
 
     // Anthropic/Claude endpoints
     this.app.post('/v1/messages', (req, res) => messagesHandler.handle(req, res));

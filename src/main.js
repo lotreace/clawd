@@ -245,6 +245,24 @@ async function run() {
     process.exit(0);
   };
 
+  // Handle fatal errors from the API (e.g., 403 Forbidden)
+  server.on('fatal', async (error) => {
+    const cliName = targetCli === 'gemini' ? 'Gemini CLI' : 'Claude Code';
+    console.error(`\n\nFatal API error - terminating ${cliName}:\n`);
+    console.error('Your API token may have expired or been revoked. Please check your credentials.\n');
+    console.error(error.message || error);
+    if (error.status) {
+      console.error(`Status: ${error.status}`);
+    }
+    if (error.error) {
+      console.error(`Details: ${JSON.stringify(error.error, null, 2)}`);
+    }
+    logger.error('Fatal API error', error);
+    launcher.kill();
+    await server.stop();
+    process.exit(1);
+  });
+
   process.on('SIGTERM', shutdown);
   process.on('SIGINT', shutdown);
 

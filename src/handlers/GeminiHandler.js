@@ -24,6 +24,7 @@ class GeminiHandler {
     this.logger = new Logger('GeminiHandler');
     this.requestTranslator = new GeminiRequestTranslator();
     this.responseTranslator = new GeminiResponseTranslator();
+    this.onFatalError = null; // Set by ClawdServer
     this.openai = this._createOpenAIClient(config);
   }
 
@@ -200,11 +201,16 @@ class GeminiHandler {
   _handleError(res, error) {
     this.logger.error('Gemini request failed', error);
 
+    const statusCode = this._getStatusCode(error);
+
+    // 403 is fatal - notify main process to kill CLI
+    if (statusCode === 403 && this.onFatalError) {
+      this.onFatalError(error);
+    }
+
     if (res.headersSent) {
       return;
     }
-
-    const statusCode = this._getStatusCode(error);
 
     res.status(statusCode).json({
       error: {
